@@ -1,1 +1,9 @@
+# Python system files
+__pycache__/
+*.pyc
 venv/
+.env
+.DS_Store
+
+# Generated Data (We don't want to save this to GitHub)
+data/elo_state.json
