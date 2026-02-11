@@ -1,110 +1,132 @@
 {
   "misa": {
     "full_name": "Michal Rendl",
-    "age": "62"
+    "age": "62",
+    "initial_elo": 968
   },
   "petr": {
     "full_name": "Petr Zahálka",
-    "age": "62"
+    "age": "62",
+    "initial_elo": 915
   },
   "vlado": {
     "full_name": "Vlado Komprda",
-    "age": "52"
+    "age": "52",
+    "initial_elo": 1150
   },
   "pedro": {
     "full_name": "Petr Lukáš",
-    "age": "39"
+    "age": "39",
+    "initial_elo": 1150
   },
   "jiras": {
     "full_name": "Petr Jirásek",
-    "age": "40"
+    "age": "40",
+    "initial_elo": 765
   },
   "vasek": {
     "full_name": "Václav Velešík",
-    "age": "34"
+    "age": "34",
+    "initial_elo": 1500
   },
   "lada": {
     "full_name": "Ladislav Hájek",
-    "age": "70"
+    "age": "70",
+    "initial_elo": 1004
   },
   "bruno": {
     "full_name": "Lubomír Klajsner",
-    "age": "65"
+    "age": "65",
+    "initial_elo": 1050
   },
   "lukas": {
     "full_name": "Lukáš Vokurka",
-    "age": "25"
+    "age": "25",
+    "initial_elo": 1600
   },
   "karhan": {
     "full_name": "Zdeněk Karhan",
-    "age": "65"
+    "age": "65",
+    "initial_elo": 1100
   },
   "tomas": {
     "full_name": "Tomáš Vokurka",
-    "age": "45"
+    "age": "45",
+    "initial_elo": 1250
   },
   "zdenek": {
     "full_name": "Zdeněk Lesák",
-    "age": "50"
+    "age": "50",
+    "initial_elo": 1300
   },
   "milan": {
     "full_name": "Milan Koželuh",
-    "age": "55"
+    "age": "55",
+    "initial_elo": 1150
   },
   "patrik": {
     "full_name": "Patrik Jíra",
-    "age": "25"
+    "age": "25",
+    "initial_elo": 1400
   },
   "marecek": {
     "full_name": "Marek Skřivan",
-    "age": "16"
+    "age": "16",
+    "initial_elo": 1000
   },
-  "hess": {
-    "full_name": "Michal Hess",
-    "age": "30"
+  "hes": {
+    "full_name": "Michal Hes",
+    "age": "30",
+    "initial_elo": 1350
   },
   "stilip": {
     "full_name": "Míša Štilip",
-    "age": "30"
+    "age": "30",
+    "initial_elo": 1300
   },
   "radek": {
     "full_name": "Radek Šojsl",
-    "age": "60"
+    "age": "60",
+    "initial_elo": 900
   },
   "warriors": {
     "full_name": "Michal Warriors",
-    "age": "25"
+    "age": "25",
+    "initial_elo": 1100
   },
   "stilipjan": {
     "full_name": "Jan Štilip",
-    "age": "30"
+    "age": "30",
+    "initial_elo": 1200
   },
   "pepa": {
     "full_name": "Josef Koželuh",
-    "age": "23"
+    "age": "23",
+    "initial_elo": 1600
   },
   "stepan": {
     "full_name": "Štěpán Jahn",
-    "age": "72"
+    "age": "72",
+    "initial_elo": 800
   },
   "matej": {
     "full_name": "Matěj Komprda",
-    "age": "25"
+    "age": "25",
+    "initial_elo": 1200
   },
   "ondra": {
     "full_name": "Ondra Červený",
-    "age": "25"
+    "age": "25",
+    "initial_elo": 1200
   },
-  "duchon": {
-    "full_name": "Petr Duchoň",
-    "age": "72"
+  "milanluk": {
+    "full_name": "Milan Lukáš",
+    "age": "30",
+    "initial_elo": 1200
   },
-  "pomp": {
-    "full_name": "Pavel Pomp",
-    "age": "30"
-  },
-  "alex": {
-    "full_name": "Alex Berlin",
-    "age": "25"
+  "miroslavposp": {
+    "full_name": "Miloslav Pospíšilík",
+    "age": "30",
+    "initial_elo": 1200
   }
 }
