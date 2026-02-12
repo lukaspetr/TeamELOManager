@@ -234,4 +234,55 @@ with tab2:
                 for p in team_list:
                     fname = roster.get(p['n'], {}).get("full_name", p['n'])
                     if p == rotation_player:
-                        st.write(f
+                        st.write(f"💤 ~{fname}~ (střídá)")
+                    else:
+                        st.write(f"**{fname}** ({int(p['r'])})")
+
+            with c1:
+                show_team_box(ta, "A")
+            with c2:
+                show_team_box(tb, "B")
+                
+            if msg_extra: st.write(msg_extra)
+            
+            if not play_all:
+                st.success(f"Rozdíl ELO (základní sestavy): {int(diff)}")
+            else:
+                 if len(pool)%2!=0: st.caption("Hraje se přesilovka (Play All), rozdíl ELO může být vyšší.")
+
+with tab3:
+    st.header("Generátor JSON")
+    
+    curr_a = st.session_state.get("ta",[])
+    curr_b = st.session_state.get("tb",[])
+    opt_a = sorted([p for p in all_players if p not in curr_b])
+    opt_b = sorted([p for p in all_players if p not in curr_a])
+    
+    c1,c2 = st.columns(2)
+    with c1: 
+        ta = st.multiselect("Tým A", opt_a, key="ta", format_func=format_name_func)
+        sa = st.number_input("Skóre A",step=1)
+    with c2: 
+        tb = st.multiselect("Tým B", opt_b, key="tb", format_func=format_name_func)
+        sb = st.number_input("Skóre B",step=1)
+    
+    col_date, col_rot = st.columns(2)
+    with col_date:
+        d = st.text_input("Datum", value="2026-02-12")
+    with col_rot:
+        st.write("") 
+        st.write("")
+        is_rotation = st.checkbox("Bylo to se střídáním?", value=True, help="Pokud zaškrtnuto, počítá se vážený průměr ELO (jako by hráli 5 na 5). Pokud ne, počítá se přesilovka.")
+    
+    if st.button("Generovat"):
+        if not ta or not tb: st.error("Chybí týmy")
+        else:
+            j = {
+                "date": d,
+                "team_a": ta,
+                "team_b": tb,
+                "score_a": int(sa),
+                "score_b": int(sb),
+                "rotation": is_rotation
+            }
+            st.code(json.dumps(j, indent=2, ensure_ascii=False)+",", language="json")
