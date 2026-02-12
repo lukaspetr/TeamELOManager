@@ -128,5 +128,10 @@
     "full_name": "Miloslav Pospíšilík",
     "age": "60",
     "initial_elo": 1100
+  },
+  "honza": {
+    "full_name": "Honza",
+    "age": "60",
+    "initial_elo": 800
   }
 }
