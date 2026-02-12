@@ -50,6 +50,18 @@ def calculate_elo(matches, roster):
         
     return elo_db
 
+# --- HELPER FUNKCE PRO ZOBRAZENÍ JMÉNA ---
+def format_name_func(player_id):
+    """
+    Vezme ID 'petr' a vrátí 'petr (Petr Zahálka)'
+    nebo jen 'petr', pokud plné jméno neexistuje.
+    """
+    meta = roster.get(player_id, {})
+    full_name = meta.get("full_name", "")
+    if full_name:
+        return f"{player_id} ({full_name})"
+    return player_id
+
 # --- UI APLIKACE ---
 st.title("⚽ Football ELO Manager")
 
@@ -59,14 +71,16 @@ elo_db = calculate_elo(matches, roster)
 
 all_players = sorted(list(set(elo_db.keys()) | set(roster.keys())))
 
-# PŘÍPRAVA ŽEBŘÍČKU
+# PŘÍPRAVA ŽEBŘÍČKU (PRO TABULKU)
 leaderboard = []
 for name, rating in elo_db.items():
     meta = roster.get(name, {})
+    full_name = meta.get("full_name", name) # Do tabulky chceme jen čisté plné jméno
     games = sum(1 for m in matches if name in m['team_a'] or name in m['team_b'])
+    
     leaderboard.append({
         "Rank": 0,
-        "Jméno": name,
+        "Hráč": full_name,
         "ELO": int(rating.mu),
         "Zápasů": games,
         "Věk": meta.get("age", "-")
@@ -79,12 +93,9 @@ for i, p in enumerate(leaderboard): p['Rank'] = i + 1
 tab1, tab2, tab3 = st.tabs(["📊 Žebříček", "⚖️ Týmy", "📝 Zadat zápas"])
 
 with tab1:
-    # --- UPRAVENÁ TABULKA ---
-    # height=800 zajistí, že bude dostatečně vysoká
-    # use_container_width=True ji roztáhne do šířky
     st.dataframe(
         leaderboard,
-        column_order=("Rank", "Jméno", "ELO", "Zápasů", "Věk"),
+        column_order=("Rank", "Hráč", "ELO", "Zápasů", "Věk"),
         hide_index=True,
         use_container_width=True,
         height=800 
@@ -92,9 +103,15 @@ with tab1:
 
 with tab2:
     st.header("Generátor týmů")
-    selected = st.multiselect("Kdo hraje?", all_players)
+    
+    # --- ZDE JE ZMĚNA: format_func ---
+    selected = st.multiselect(
+        "Kdo hraje?", 
+        options=all_players, 
+        format_func=format_name_func
+    )
+    
     if st.button("Navrhnout") and len(selected) >= 2:
-        # Data pro generátor
         pool = []
         for n in selected:
             r = elo_db[n].mu if n in elo_db else roster.get(n,{}).get("initial_elo",1200)
@@ -125,37 +142,48 @@ with tab2:
         if best[0]:
             (ta, tb), diff = best
             
-            # Lichý hráč logika
             msg = ""
             if extra:
                 aa = sum(x['age'] for x in ta)/len(ta) if ta else 0
                 ab = sum(x['age'] for x in tb)/len(tb) if tb else 0
                 if aa > ab: ta.append(extra); t="A"
                 else: tb.append(extra); t="B"
-                msg = f"ℹ️ {extra['n']} přidán k týmu {t} (starší)."
+                msg = f"ℹ️ {format_name_func(extra['n'])} přidán k týmu {t} (starší)."
                 
             c1, c2 = st.columns(2)
+            
+            def show_names(lst):
+                for p in lst:
+                    # Zde vypisujeme "Plné jméno" tučně
+                    fname = roster.get(p['n'], {}).get("full_name", p['n'])
+                    mark = " ➕" if extra and p == extra else ""
+                    st.write(f"**{fname}** ({int(p['r'])}){mark}")
+
             with c1:
                 st.info(f"Tým A ({int(sum(x['r'] for x in ta))})")
-                for p in ta: st.write(f"**{p['n']}** ({int(p['r'])}){' ➕' if extra and p==extra else ''}")
+                show_names(ta)
             with c2:
                 st.warning(f"Tým B ({int(sum(x['r'] for x in tb))})")
-                for p in tb: st.write(f"**{p['n']}** ({int(p['r'])}){' ➕' if extra and p==extra else ''}")
+                show_names(tb)
             if msg: st.write(msg)
             st.success(f"Rozdíl ELO: {int(diff)}")
 
 with tab3:
     st.header("Generátor JSON")
     
-    # Chytré filtrování (Co je v A, není v B)
     curr_a = st.session_state.get("ta",[])
     curr_b = st.session_state.get("tb",[])
     opt_a = sorted([p for p in all_players if p not in curr_b])
     opt_b = sorted([p for p in all_players if p not in curr_a])
     
     c1,c2 = st.columns(2)
-    with c1: ta = st.multiselect("Tým A", opt_a, key="ta"); sa = st.number_input("Skóre A",step=1)
-    with c2: tb = st.multiselect("Tým B", opt_b, key="tb"); sb = st.number_input("Skóre B",step=1)
+    with c1: 
+        # I tady jsem přidal format_func pro lepší přehlednost
+        ta = st.multiselect("Tým A", opt_a, key="ta", format_func=format_name_func)
+        sa = st.number_input("Skóre A",step=1)
+    with c2: 
+        tb = st.multiselect("Tým B", opt_b, key="tb", format_func=format_name_func)
+        sb = st.number_input("Skóre B",step=1)
     
     d = st.text_input("Datum", value="2026-02-12")
     
