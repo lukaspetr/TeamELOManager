@@ -26,6 +26,7 @@ def load_roster():
 
 # --- VÝPOČET ELO ---
 def calculate_elo(matches, roster):
+    # Důležité: 'weights' podporují modely jako PlackettLuce
     model = PlackettLuce(mu=1200, sigma=400)
     elo_db = {}
     
@@ -38,15 +39,40 @@ def calculate_elo(matches, roster):
     for match in matches:
         t_a = match['team_a']
         t_b = match['team_b']
+        
+        # Init hráčů, co nejsou v DB
         for p in t_a + t_b:
             if p not in elo_db: elo_db[p] = model.rating(name=p, mu=1200, sigma=400)
             
         r_a = [elo_db[p] for p in t_a]
         r_b = [elo_db[p] for p in t_b]
         
-        # PlackettLuce přirozeně pracuje se součtem sil. 
-        # Pokud hraje 6 vs 5, tým o 6 hráčích má vyšší "celkové skill" a model očekává výhru.
-        res = model.rate([r_a, r_b], scores=[match['score_a'], match['score_b']])
+        # --- LOGIKA VÁH PRO STŘÍDÁNÍ ---
+        # Defaultně má každý váhu 1.0 (hraje celý zápas / hrají všichni)
+        w_a = [1.0] * len(t_a)
+        w_b = [1.0] * len(t_b)
+        
+        # Pokud je v zápisu uvedeno, že se střídalo ("rotation": true)
+        if match.get("rotation", False):
+            len_a = len(t_a)
+            len_b = len(t_b)
+            
+            # Zjistíme, kolik lidí bylo maximálně na hřišti (velikost menšího týmu)
+            field_size = min(len_a, len_b)
+            
+            # Pokud má tým A víc lidí než je field_size, snížíme jim váhu
+            # Příklad: Hrají 6 lidí na 5 míst. Váha každého je 5/6 (0.83)
+            if len_a > field_size:
+                factor = field_size / len_a
+                w_a = [factor] * len_a
+                
+            # To samé pro tým B
+            if len_b > field_size:
+                factor = field_size / len_b
+                w_b = [factor] * len_b
+
+        # Výpočet s vahami
+        res = model.rate([r_a, r_b], scores=[match['score_a'], match['score_b']], weights=[w_a, w_b])
         
         for i, p in enumerate(t_a): elo_db[p] = res[0][i]
         for i, p in enumerate(t_b): elo_db[p] = res[1][i]
@@ -213,11 +239,25 @@ with tab3:
         tb = st.multiselect("Tým B", opt_b, key="tb", format_func=format_name_func)
         sb = st.number_input("Skóre B",step=1)
     
-    d = st.text_input("Datum", value="2026-02-12")
+    col_date, col_rot = st.columns(2)
+    with col_date:
+        d = st.text_input("Datum", value="2026-02-12")
+    with col_rot:
+        # Checkbox pro typ zápasu
+        st.write("") # Spacer
+        st.write("")
+        is_rotation = st.checkbox("Bylo to se střídáním?", value=True, help="Pokud je zaškrtnuto, počítá se ELO jako by byl počet hráčů na hřišti vyrovnaný (vážený průměr). Pokud ne, počítá se jako přesilovka (součet).")
     
     if st.button("Generovat"):
         if not ta or not tb: 
             st.error("Chybí týmy")
         else:
-            j = {"date":d,"team_a":ta,"team_b":tb,"score_a":int(sa),"score_b":int(sb)}
+            j = {
+                "date": d,
+                "team_a": ta,
+                "team_b": tb,
+                "score_a": int(sa),
+                "score_b": int(sb),
+                "rotation": is_rotation  # Nový parametr
+            }
             st.code(json.dumps(j, indent=2, ensure_ascii=False)+",", language="json")
