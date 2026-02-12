@@ -43,6 +43,9 @@ def calculate_elo(matches, roster):
             
         r_a = [elo_db[p] for p in t_a]
         r_b = [elo_db[p] for p in t_b]
+        
+        # PlackettLuce přirozeně pracuje se součtem sil. 
+        # Pokud hraje 6 vs 5, tým o 6 hráčích má vyšší "celkové skill" a model očekává výhru.
         res = model.rate([r_a, r_b], scores=[match['score_a'], match['score_b']])
         
         for i, p in enumerate(t_a): elo_db[p] = res[0][i]
@@ -50,12 +53,8 @@ def calculate_elo(matches, roster):
         
     return elo_db
 
-# --- HELPER FUNKCE PRO ZOBRAZENÍ JMÉNA ---
+# --- HELPER PRO JMÉNA ---
 def format_name_func(player_id):
-    """
-    Vezme ID 'petr' a vrátí 'petr (Petr Zahálka)'
-    nebo jen 'petr', pokud plné jméno neexistuje.
-    """
     meta = roster.get(player_id, {})
     full_name = meta.get("full_name", "")
     if full_name:
@@ -71,11 +70,11 @@ elo_db = calculate_elo(matches, roster)
 
 all_players = sorted(list(set(elo_db.keys()) | set(roster.keys())))
 
-# PŘÍPRAVA ŽEBŘÍČKU (PRO TABULKU)
+# PŘÍPRAVA ŽEBŘÍČKU
 leaderboard = []
 for name, rating in elo_db.items():
     meta = roster.get(name, {})
-    full_name = meta.get("full_name", name) # Do tabulky chceme jen čisté plné jméno
+    full_name = meta.get("full_name", name)
     games = sum(1 for m in matches if name in m['team_a'] or name in m['team_b'])
     
     leaderboard.append({
@@ -104,69 +103,99 @@ with tab1:
 with tab2:
     st.header("Generátor týmů")
     
-    # --- ZDE JE ZMĚNA: format_func ---
+    # 1. Výběr hráčů
     selected = st.multiselect(
         "Kdo hraje?", 
         options=all_players, 
         format_func=format_name_func
     )
     
+    # 2. Checkbox pro režim hry
+    # Defaultně False = Střídá se (chceme férové týmy N vs N)
+    play_all = st.checkbox("Hrají všichni v poli (bez střídání)", value=False, help="Pokud je zaškrtnuto, vytvoří se týmy např. 5 proti 6. Tým s více hráči bude mít ELO výhodu.")
+    
     if st.button("Navrhnout") and len(selected) >= 2:
+        # Příprava dat
         pool = []
         for n in selected:
             r = elo_db[n].mu if n in elo_db else roster.get(n,{}).get("initial_elo",1200)
             try: age = float(roster.get(n,{}).get("age",30))
             except: age = 30
             pool.append({"n":n, "r":r, "age":age})
+        
+        # Seřadit podle ELO (jen pomocné, kombinace to nepotřebují, ale je to dobré pro přehled)
         pool.sort(key=lambda x: x['r'], reverse=True)
         
-        # Sudý/Lichý
-        if len(pool) % 2 != 0:
-            main = pool[:-1]
-            extra = pool[-1]
-        else:
-            main = pool
-            extra = None
-            
-        # Kombinace
-        combs = list(itertools.combinations(main, len(main)//2))
-        if len(combs)>3000: combs=combs[:3000]
+        # LOGIKA ROZDĚLENÍ
+        extra_player = None
+        main_pool = pool
+        
+        # Pokud je lichý počet A NIKDO NESTŘÍDÁ (Play All = True) -> Necháme všechny ve hře
+        # Pokud je lichý počet A STŘÍDÁ SE (Play All = False) -> Jednoho vyhodíme
+        
+        if len(pool) % 2 != 0 and not play_all:
+            extra_player = pool[-1] # Nejslabší hráč (nebo náhodný) jde střídat
+            main_pool = pool[:-1]
+        
+        # Generování kombinací
+        # itertools.combinations vybere polovinu hráčů do Týmu A, zbytek je Tým B
+        # Pokud je main_pool lichý (jen v režimu play_all), split bude např. 5 vs 6
+        team_size = len(main_pool) // 2
+        combs = list(itertools.combinations(main_pool, team_size))
+        
+        # Omezíme počet iterací pro rychlost
+        if len(combs) > 5000: combs = combs[:5000]
         
         best = (None, float('inf'))
+        
         for ta in combs:
             ta_names = {x['n'] for x in ta}
-            tb = [x for x in main if x['n'] not in ta_names]
-            diff = abs(sum(x['r'] for x in ta) - sum(x['r'] for x in tb))
-            if diff < best[1]: best = ((list(ta), list(tb)), diff)
+            # Tým B je zbytek z main_pool
+            tb = [x for x in main_pool if x['n'] not in ta_names]
             
+            # Kritický bod: Porovnáváme Součet ELO
+            sum_a = sum(x['r'] for x in ta)
+            sum_b = sum(x['r'] for x in tb)
+            diff = abs(sum_a - sum_b)
+            
+            if diff < best[1]: 
+                best = ((list(ta), list(tb)), diff)
+                
         if best[0]:
             (ta, tb), diff = best
             
+            # Pokud se střídá, vypíšeme extra hráče
             msg = ""
-            if extra:
-                aa = sum(x['age'] for x in ta)/len(ta) if ta else 0
-                ab = sum(x['age'] for x in tb)/len(tb) if tb else 0
-                if aa > ab: ta.append(extra); t="A"
-                else: tb.append(extra); t="B"
-                msg = f"ℹ️ {format_name_func(extra['n'])} přidán k týmu {t} (starší)."
-                
+            if extra_player and not play_all:
+                 msg = f"ℹ️ **Lichý počet (střídání):** Hráč **{format_name_func(extra_player['n'])}** začíná na střídačce."
+
             c1, c2 = st.columns(2)
             
-            def show_names(lst):
+            def show_team_list(lst):
                 for p in lst:
-                    # Zde vypisujeme "Plné jméno" tučně
                     fname = roster.get(p['n'], {}).get("full_name", p['n'])
-                    mark = " ➕" if extra and p == extra else ""
-                    st.write(f"**{fname}** ({int(p['r'])}){mark}")
+                    st.write(f"**{fname}** ({int(p['r'])})")
 
             with c1:
                 st.info(f"Tým A ({int(sum(x['r'] for x in ta))})")
-                show_names(ta)
+                show_team_list(ta)
             with c2:
-                st.warning(f"Tým B ({int(sum(x['r'] for x in tb))})")
-                show_names(tb)
+                # Barva podle toho, jestli je to přesilovka
+                is_powerplay = len(tb) > len(ta)
+                header_text = f"Tým B ({int(sum(x['r'] for x in tb))})"
+                if is_powerplay:
+                     st.error(f"{header_text} - PŘESILOVKA (+1 hráč)")
+                else:
+                     st.warning(header_text)
+                show_team_list(tb)
+                
             if msg: st.write(msg)
-            st.success(f"Rozdíl ELO: {int(diff)}")
+            
+            # Informace o ELO dopadu
+            if play_all and len(pool) % 2 != 0:
+                st.caption("⚠️ Protože hrají všichni (lichý počet), Tým B má výhodu jednoho hráče. ELO systém s tím počítá (očekává jejich výhru).")
+            else:
+                st.success(f"Rozdíl ELO: {int(diff)}")
 
 with tab3:
     st.header("Generátor JSON")
@@ -178,7 +207,6 @@ with tab3:
     
     c1,c2 = st.columns(2)
     with c1: 
-        # I tady jsem přidal format_func pro lepší přehlednost
         ta = st.multiselect("Tým A", opt_a, key="ta", format_func=format_name_func)
         sa = st.number_input("Skóre A",step=1)
     with c2: 
@@ -188,7 +216,8 @@ with tab3:
     d = st.text_input("Datum", value="2026-02-12")
     
     if st.button("Generovat"):
-        if not ta or not tb: st.error("Chybí týmy")
+        if not ta or not tb: 
+            st.error("Chybí týmy")
         else:
             j = {"date":d,"team_a":ta,"team_b":tb,"score_a":int(sa),"score_b":int(sb)}
             st.code(json.dumps(j, indent=2, ensure_ascii=False)+",", language="json")
